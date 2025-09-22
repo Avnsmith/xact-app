@@ -42,26 +42,30 @@ A Next.js app that analyzes Twitter trends using Fireworks AI (Kimi K2 Instruct)
 
 ## For Users
 
-To use Xact, you'll need:
-1. A Twitter Developer Account
-2. A Twitter Bearer Token from the [Twitter Developer Portal](https://developer.twitter.com)
-3. Enter your token in the app to start analyzing trends
+To use Xact, simply:
+1. Click "Connect with Twitter" button
+2. Authorize the app to access your Twitter data
+3. Start analyzing trends with AI-powered insights
+
+No need to get API keys or tokens - we handle the OAuth flow for you!
 
 ## API Endpoints
 
 - `POST /api/analyze` - Analyze Twitter trends (requires user's Twitter token)
-- `GET /api/auth` - Twitter OAuth (TODO)
+- `GET /api/auth?action=login` - Initiate Twitter OAuth
+- `GET /api/auth/callback` - Handle OAuth callback
 
 ## Privacy & Security
 
-- ✅ User Twitter API keys are stored locally in browser
+- ✅ User Twitter access tokens are stored locally in browser
 - ✅ No server-side storage of user credentials
 - ✅ Users control their own Twitter data access
 - ✅ Only analysis results are processed by Fireworks AI
+- ✅ Secure OAuth 2.0 flow with Twitter
 
 ## Next Steps
 
-- [ ] Implement Twitter OAuth2 authentication
+- [x] Implement Twitter OAuth2 authentication
 - [ ] Add real-time streaming with WebSockets
 - [ ] Enhanced analytics (velocity, sentiment, token co-occurrence)
 - [ ] User dashboard with saved analyses

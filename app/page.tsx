@@ -7,15 +7,45 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [twitterConnected, setTwitterConnected] = useState(false);
-  const [showApiKeyForm, setShowApiKeyForm] = useState(false);
-  const [apiKey, setApiKey] = useState("");
+  const [userInfo, setUserInfo] = useState<any>(null);
+  const [accessToken, setAccessToken] = useState("");
 
-  // Check if user has Twitter API key stored
+  // Check for OAuth callback parameters and stored session
   useEffect(() => {
-    const storedKey = localStorage.getItem('twitter_bearer_token');
-    if (storedKey) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const connected = urlParams.get('twitter_connected');
+    const token = urlParams.get('access_token');
+    const username = urlParams.get('username');
+    const name = urlParams.get('name');
+    const error = urlParams.get('error');
+
+    if (connected === 'true' && token) {
+      // Store OAuth session
+      localStorage.setItem('twitter_access_token', token);
+      localStorage.setItem('twitter_username', username || '');
+      localStorage.setItem('twitter_name', name || '');
+      
       setTwitterConnected(true);
-      setApiKey(storedKey);
+      setAccessToken(token);
+      setUserInfo({ username, name });
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error) {
+      console.error('OAuth error:', error);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      // Check for existing session
+      const storedToken = localStorage.getItem('twitter_access_token');
+      const storedUsername = localStorage.getItem('twitter_username');
+      const storedName = localStorage.getItem('twitter_name');
+      
+      if (storedToken) {
+        setTwitterConnected(true);
+        setAccessToken(storedToken);
+        setUserInfo({ username: storedUsername, name: storedName });
+      }
     }
   }, []);
 
@@ -23,7 +53,6 @@ export default function Home() {
     e.preventDefault();
     
     if (!twitterConnected) {
-      setShowApiKeyForm(true);
       return;
     }
 
@@ -35,7 +64,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           query,
-          twitterBearerToken: apiKey 
+          twitterAccessToken: accessToken 
         }),
       });
 
@@ -49,19 +78,17 @@ export default function Home() {
     }
   }
 
-  function handleApiKeySubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (apiKey.trim()) {
-      localStorage.setItem('twitter_bearer_token', apiKey);
-      setTwitterConnected(true);
-      setShowApiKeyForm(false);
-    }
+  function connectTwitter() {
+    window.location.href = '/api/auth?action=login';
   }
 
   function disconnectTwitter() {
-    localStorage.removeItem('twitter_bearer_token');
+    localStorage.removeItem('twitter_access_token');
+    localStorage.removeItem('twitter_username');
+    localStorage.removeItem('twitter_name');
     setTwitterConnected(false);
-    setApiKey("");
+    setAccessToken("");
+    setUserInfo(null);
     setResults(null);
   }
 
@@ -75,9 +102,16 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`h-3 w-3 rounded-full ${twitterConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-              <span className="text-sm font-medium">
-                Twitter API: {twitterConnected ? 'Connected' : 'Not Connected'}
-              </span>
+              <div>
+                <span className="text-sm font-medium">
+                  Twitter: {twitterConnected ? 'Connected' : 'Not Connected'}
+                </span>
+                {twitterConnected && userInfo && (
+                  <div className="text-xs text-gray-600">
+                    @{userInfo.username} • {userInfo.name}
+                  </div>
+                )}
+              </div>
             </div>
             {twitterConnected ? (
               <button
@@ -88,52 +122,32 @@ export default function Home() {
               </button>
             ) : (
               <button
-                onClick={() => setShowApiKeyForm(true)}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                onClick={connectTwitter}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
               >
-                Connect
+                Connect Twitter
               </button>
             )}
           </div>
         </div>
 
-        {/* API Key Form */}
-        {showApiKeyForm && (
+        {/* Connection Info */}
+        {!twitterConnected && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <h3 className="mb-2 font-semibold text-blue-900">Connect Your Twitter API</h3>
+            <h3 className="mb-2 font-semibold text-blue-900">Connect Your Twitter Account</h3>
             <p className="mb-3 text-sm text-blue-700">
-              Enter your Twitter Bearer Token to analyze trends. Get one from{' '}
-              <a 
-                href="https://developer.twitter.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="underline hover:text-blue-900"
-              >
-                Twitter Developer Portal
-              </a>
+              Connect your Twitter account to analyze trends and get AI-powered insights. 
+              We'll only access your public data for analysis.
             </p>
-            <form onSubmit={handleApiKeySubmit} className="flex gap-2">
-              <input
-                type="password"
-                placeholder="Your Twitter Bearer Token"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="flex-1 rounded-lg border border-blue-300 px-3 py-2 text-sm"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-              >
-                Connect
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowApiKeyForm(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </form>
+            <button
+              onClick={connectTwitter}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Connect with Twitter
+            </button>
           </div>
         )}
 

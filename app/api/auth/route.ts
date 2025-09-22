@@ -1,22 +1,34 @@
 import { NextResponse } from "next/server";
 
-// OAuth2 Twitter authentication route
+// Twitter OAuth2 authentication route
 export async function GET(req: Request) {
-  // TODO: Implement Twitter OAuth2 flow
-  // This would typically involve:
-  // 1. Redirect to Twitter OAuth
-  // 2. Handle callback
-  // 3. Store user session
-  
-  return NextResponse.json({ 
-    message: "Twitter OAuth not implemented yet",
-    note: "Add Twitter OAuth2 implementation here"
-  });
-}
+  const { searchParams } = new URL(req.url);
+  const action = searchParams.get('action');
 
-export async function POST(req: Request) {
-  // TODO: Handle OAuth callback
+  if (action === 'login') {
+    // Step 1: Redirect to Twitter OAuth
+    const clientId = process.env.TWITTER_CLIENT_ID;
+    const redirectUri = process.env.TWITTER_REDIRECT_URI;
+    
+    if (!clientId || !redirectUri) {
+      return NextResponse.json({ 
+        error: "Twitter OAuth not configured. Missing CLIENT_ID or REDIRECT_URI" 
+      }, { status: 500 });
+    }
+
+    const twitterAuthUrl = new URL('https://twitter.com/i/oauth2/authorize');
+    twitterAuthUrl.searchParams.set('response_type', 'code');
+    twitterAuthUrl.searchParams.set('client_id', clientId);
+    twitterAuthUrl.searchParams.set('redirect_uri', redirectUri);
+    twitterAuthUrl.searchParams.set('scope', 'tweet.read users.read');
+    twitterAuthUrl.searchParams.set('state', 'xact-twitter-auth');
+    twitterAuthUrl.searchParams.set('code_challenge', 'challenge');
+    twitterAuthUrl.searchParams.set('code_challenge_method', 'plain');
+
+    return NextResponse.redirect(twitterAuthUrl.toString());
+  }
+
   return NextResponse.json({ 
-    message: "OAuth callback not implemented yet" 
-  });
+    error: "Invalid action. Use ?action=login" 
+  }, { status: 400 });
 }

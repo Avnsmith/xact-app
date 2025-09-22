@@ -2,24 +2,24 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { query, twitterBearerToken } = await req.json();
+    const { query, twitterAccessToken } = await req.json();
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    if (!twitterBearerToken) {
-      return NextResponse.json({ error: "Twitter Bearer Token is required" }, { status: 400 });
+    if (!twitterAccessToken) {
+      return NextResponse.json({ error: "Twitter access token is required" }, { status: 400 });
     }
 
-    // 1. Fetch tweets from Twitter API using user's token
+    // 1. Fetch tweets from Twitter API using user's OAuth access token
     const twitterRes = await fetch(
       `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(
         query
       )}&max_results=20&tweet.fields=public_metrics,created_at,author_id&user.fields=username,name&expansions=author_id`,
       {
         headers: { 
-          Authorization: `Bearer ${twitterBearerToken}`,
+          Authorization: `Bearer ${twitterAccessToken}`,
         },
       }
     );
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       
       if (twitterRes.status === 401) {
         return NextResponse.json({ 
-          error: "Invalid Twitter API token. Please check your Bearer Token and try again." 
+          error: "Invalid Twitter access token. Please reconnect your Twitter account." 
         }, { status: 401 });
       }
       
