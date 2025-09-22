@@ -9,6 +9,8 @@ export default function Home() {
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [accessToken, setAccessToken] = useState("");
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [manualToken, setManualToken] = useState("");
 
   // Check for OAuth callback parameters and stored session
   useEffect(() => {
@@ -18,6 +20,8 @@ export default function Home() {
     const username = urlParams.get('username');
     const name = urlParams.get('name');
     const error = urlParams.get('error');
+
+    console.log('OAuth callback params:', { connected, token: token ? 'present' : 'missing', username, name, error });
 
     if (connected === 'true' && token) {
       // Store OAuth session
@@ -29,10 +33,13 @@ export default function Home() {
       setAccessToken(token);
       setUserInfo({ username, name });
       
+      console.log('Twitter connected successfully:', { username, name });
+      
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (error) {
       console.error('OAuth error:', error);
+      alert(`Twitter connection failed: ${error}`);
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     } else {
@@ -45,6 +52,7 @@ export default function Home() {
         setTwitterConnected(true);
         setAccessToken(storedToken);
         setUserInfo({ username: storedUsername, name: storedName });
+        console.log('Restored Twitter session:', { username: storedUsername, name: storedName });
       }
     }
   }, []);
@@ -82,6 +90,21 @@ export default function Home() {
     window.location.href = '/api/auth?action=login';
   }
 
+  function handleManualTokenSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (manualToken.trim()) {
+      localStorage.setItem('twitter_access_token', manualToken);
+      localStorage.setItem('twitter_username', 'Manual Token');
+      localStorage.setItem('twitter_name', 'Manual Connection');
+      
+      setTwitterConnected(true);
+      setAccessToken(manualToken);
+      setUserInfo({ username: 'Manual Token', name: 'Manual Connection' });
+      setShowManualInput(false);
+      setManualToken("");
+    }
+  }
+
   function disconnectTwitter() {
     localStorage.removeItem('twitter_access_token');
     localStorage.removeItem('twitter_username');
@@ -90,6 +113,8 @@ export default function Home() {
     setAccessToken("");
     setUserInfo(null);
     setResults(null);
+    setShowManualInput(false);
+    setManualToken("");
   }
 
   return (
@@ -139,15 +164,46 @@ export default function Home() {
               Connect your Twitter account to analyze trends and get AI-powered insights. 
               We'll only access your public data for analysis.
             </p>
-            <button
-              onClick={connectTwitter}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-            >
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-              </svg>
-              Connect with Twitter
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={connectTwitter}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                Connect with Twitter
+              </button>
+              <button
+                onClick={() => setShowManualInput(!showManualInput)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+              >
+                Manual Token
+              </button>
+            </div>
+            
+            {showManualInput && (
+              <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+                <p className="mb-2 text-xs text-gray-600">
+                  If OAuth doesn't work, you can manually enter your Twitter Bearer Token
+                </p>
+                <form onSubmit={handleManualTokenSubmit} className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Your Twitter Bearer Token"
+                    value={manualToken}
+                    onChange={(e) => setManualToken(e.target.value)}
+                    className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded bg-gray-600 px-3 py-2 text-sm text-white hover:bg-gray-700"
+                  >
+                    Connect
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
 

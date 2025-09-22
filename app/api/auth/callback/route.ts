@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
+
+  const cookieStore = cookies();
+  const storedState = cookieStore.get('oauth_state')?.value;
+  const codeVerifier = cookieStore.get('oauth_code_verifier')?.value;
 
   // Handle OAuth errors
   if (error) {
@@ -14,7 +19,8 @@ export async function GET(req: Request) {
   }
 
   // Verify state parameter
-  if (state !== 'xact-twitter-auth') {
+  if (!state || !storedState || state !== storedState) {
+    console.error('State mismatch:', { state, storedState });
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=invalid_state`
     );
@@ -23,6 +29,12 @@ export async function GET(req: Request) {
   if (!code) {
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=no_code`
+    );
+  }
+
+  if (!codeVerifier) {
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=no_code_verifier`
     );
   }
 
@@ -41,7 +53,7 @@ export async function GET(req: Request) {
         grant_type: 'authorization_code',
         client_id: process.env.TWITTER_CLIENT_ID!,
         redirect_uri: process.env.TWITTER_REDIRECT_URI!,
-        code_verifier: 'challenge'
+        code_verifier: codeVerifier
       })
     });
 
@@ -57,14 +69,15 @@ export async function GET(req: Request) {
     const accessToken = tokenData.access_token;
 
     // Get user info
-    const userResponse = await fetch('https://api.twitter.com/2/users/me', {
+    const userResponse = await fetch('https://api.twitter.com/2/users/me?user.fields=username,name,profile_image_url', {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
     });
 
     if (!userResponse.ok) {
-      console.error('User info error:', await userResponse.json());
+      const errorData = await userResponse.json();
+      console.error('User info error:', errorData);
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=user_info_failed`
       );
@@ -79,7 +92,13 @@ export async function GET(req: Request) {
     redirectUrl.searchParams.set('username', userData.data.username);
     redirectUrl.searchParams.set('name', userData.data.name);
 
-    return NextResponse.redirect(redirectUrl.toString());
+    const response = NextResponse.redirect(redirectUrl.toString());
+    
+    // Clear OAuth cookies
+    response.cookies.delete('oauth_code_verifier');
+    response.cookies.delete('oauth_state');
+
+    return response;
 
   } catch (error) {
     console.error('OAuth callback error:', error);
